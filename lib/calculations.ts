@@ -116,6 +116,21 @@ export function valueToScore(
       if (value < 300) return { score: 65, signal: 'orange' };
       return { score: 85, signal: 'red' };
 
+    case 'mvrv':
+      // MVRV Ratio - Market Value to Realized Value
+      if (value < 1.0) return { score: 0, signal: 'green' };
+      if (value < 2.0) return { score: 30, signal: 'yellow' };
+      if (value < 3.5) return { score: 65, signal: 'orange' };
+      return { score: 90, signal: 'red' };
+
+    case 'exchange-net-flow':
+      // Exchange Net Flow in USD (millions)
+      const flowInMillions = value / 1_000_000;
+      if (flowInMillions < -50) return { score: 0, signal: 'green' };
+      if (flowInMillions < 0) return { score: 25, signal: 'yellow' };
+      if (flowInMillions < 50) return { score: 60, signal: 'orange' };
+      return { score: 85, signal: 'red' };
+
     default:
       return { score: 0, signal: 'neutral' };
   }

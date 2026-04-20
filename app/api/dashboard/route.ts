@@ -14,6 +14,8 @@ export async function GET(request: Request) {
       'rsi-weekly': { enabled: true, weight: 1.0 },
       'pi-cycle': { enabled: true, weight: 1.5 },
       'btc-200dma': { enabled: true, weight: 0.8 },
+      'mvrv': { enabled: true, weight: 1.2 },
+      'exchange-net-flow': { enabled: true, weight: 0.9 },
     };
 
     if (preferences) {
@@ -26,13 +28,15 @@ export async function GET(request: Request) {
 
     // Fetch all data in parallel
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const [fearGreedRes, priceDataRes] = await Promise.all([
+    const [fearGreedRes, priceDataRes, onchainMetricsRes] = await Promise.all([
       fetch(`${baseUrl}/api/fear-greed`),
       fetch(`${baseUrl}/api/bitcoin-price`),
+      fetch(`${baseUrl}/api/onchain-metrics`),
     ]);
 
     const fearGreedData = fearGreedRes.ok ? await fearGreedRes.json() : null;
     const priceData = priceDataRes.ok ? await priceDataRes.json() : null;
+    const onchainMetricsData = onchainMetricsRes.ok ? await onchainMetricsRes.json() : null;
 
     const metrics: MetricData[] = [];
 
@@ -89,6 +93,36 @@ export async function GET(request: Request) {
         score,
         history: priceData.priceHistory || [],
         lastUpdated: priceData.lastUpdated,
+      });
+    }
+
+    // MVRV Ratio
+    if (onchainMetricsData && !onchainMetricsData.error && onchainMetricsData.mvrv.value !== null) {
+      const { score, signal } = valueToScore('mvrv', onchainMetricsData.mvrv.value);
+      metrics.push({
+        id: 'mvrv',
+        name: 'MVRV Ratio',
+        value: Math.round(onchainMetricsData.mvrv.value * 100) / 100,
+        signal,
+        score,
+        history: onchainMetricsData.mvrv.history || [],
+        lastUpdated: onchainMetricsData.lastUpdated,
+      });
+    }
+
+    // Exchange Net Flow
+    if (onchainMetricsData && !onchainMetricsData.error && onchainMetricsData.exchangeNetFlow.value !== null) {
+      const { score, signal } = valueToScore('exchange-net-flow', onchainMetricsData.exchangeNetFlow.value);
+      // Display value in millions for readability
+      const valueInMillions = Math.round(onchainMetricsData.exchangeNetFlow.value / 1_000_000);
+      metrics.push({
+        id: 'exchange-net-flow',
+        name: 'Exchange Net Flow',
+        value: valueInMillions,
+        signal,
+        score,
+        history: onchainMetricsData.exchangeNetFlow.history || [],
+        lastUpdated: onchainMetricsData.lastUpdated,
       });
     }
 
